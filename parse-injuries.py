@@ -1,10 +1,14 @@
 import re
 
-in_file = "S3 injuries.txt"
-out_file = "S3 injuries parsed.txt"
+in_file = "injuries.txt"
+out_file = "injuries parsed.txt"
 
-with open(in_file) as f:
-    content = f.read()
+try:
+    with open(in_file) as f:
+        content = f.read()
+except FileNotFoundError:
+    print(f"Error: Input file \"{in_file}\" not found.")
+    exit()
 
 content = content.strip()
 
