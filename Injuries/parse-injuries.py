@@ -1,14 +1,32 @@
 import re
+import argparse
+import textwrap
 
-in_file = "injuries.txt"
-out_file = "injuries parsed.txt"
-current_season = 4
+parser = argparse.ArgumentParser(
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    description=textwrap.dedent("""\
+    Copy from injuries page on Brutalball website.
+    https://dozerverse.com/brutalball/injury.php
+    Paste into injuries.txt and run parser."""))
+
+parser.add_argument("-f", "--file", help="Path to input file")
+parser.add_argument("-o", "--out_file", help="Path to output file")
+parser.add_argument("-s", "--season", help="Season number to use", type=int)
+
+args = parser.parse_args()
+
+if args.file:
+    print(f"Taking input from {args.file}")
+
+in_file = args.file if args.file else "injuries.txt"
+out_file = args.out_file if args.out_file else "injuries parsed.txt"
+season = args.season if args.season else 4
 
 try:
     with open(in_file) as f:
         content = f.read()
 except FileNotFoundError:
-    print(f"Error: Input file \"{in_file}\" not found.")
+    parser.print_help()
     exit()
 
 content = content.strip()
@@ -49,32 +67,31 @@ teams = [
 ]
 
 # Week number
-content = re.sub("W([\\d+])", f"{current_season},\\1", content)
+content = re.sub("W([\\d+])", f"{season},\\1", content)
 
 # INJURY
 content = re.sub(
     # Input: [DUR xx] [Blah] [BRU xx] SR Drops from [SR0] to [SR1] [Bounty]
     " DUR.(\\d+) (.+) BRU (\\d+) SR Drops from (\\d+) to (\\d+) *",
-    # Output: SR0,SR1,DUR,Type,Offender Team,Offender,BRU,Bounty
+    # Output: SR0,SR1,DUR,Blah,Bounty
     ",\\4,\\5,\\1,\\2,\\3,", content)
 
 # KILL
 content = re.sub(
-    # Input: [SR0] DUR xx KILLED by by [Offender Team] [Offender] [BRU xx] [Bounty]
+    # Input: [SR] DUR xx [Blah] [BRU xx] [Bounty]
     " SR (\\d+) DUR (\\d+) (.+) BRU (\\d+) *",
-    # Output: SR0,SR1,DUR,Type,Offender Team,Offender,BRU,Bounty
-    ",\\1,0,\\2,\\3,\\4,", content)
+    # Output: SR,,DUR,Blah,BRU,Bounty
+    ",\\1,,\\2,\\3,\\4,", content)
 
 # Isolate teams
 for team in teams:
     content = re.sub(f" *({team}) *", f",{team},", content)
 
-# Split at DUR, BRU, and injury type
+# Split at injury type
 content = re.sub(" *(INJURED|KILLED|SEASON ENDING INJURY)( by)+", "\\1", content)
-
-# Bounty
-#content = re.sub("BOUNTY COLLECTED", "True", content)
 
 headers = "Season,Week,Victim Team,Victim,SR0,SR1,DUR,Type,Offender Team,Offender,BRU,Bounty\n"
 with open(out_file, "w+") as f:
-    f.write(headers+content)
+    f.write(headers)
+with open(out_file, "a") as f:
+    f.write(content)
